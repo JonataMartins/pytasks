@@ -1,4 +1,4 @@
-# PyTasks // Quest Log
+# QuestTasks // Quest Log
 
 Um gerenciador de tarefas com identidade visual inspirada em jogos retrô e pixel art, desenvolvido com Python e Flask. Cadastre missões, defina prazos finais e acompanhe sua lista organizada por dia.
 
@@ -75,4 +75,3 @@ pytasks/
 - Agrupamento de tarefas por dia.
 - Rotas Flask com métodos HTTP GET e POST.
 - Consultas SQL parametrizadas e persistência com SQLite.
-- Templates HTML com Jinja e estilos CSS responsivos.
