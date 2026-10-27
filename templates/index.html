@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17192f">
+  <title>PyTasks // Quest Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <main class="container">
+    <header class="hero">
+      <div class="pixel-icon" aria-hidden="true">▟</div>
+      <span class="eyebrow">PLAYER 01 // DAILY PLANNER</span>
+      <h1>Quest<span>TASKS</span><b class="cursor">_</b></h1>
+      <p>Transforme missões em conquistas.</p>
+      <div class="level-bar"><span>STATUS DO DIA</span><span>LVL. {{ completed }}</span></div>
+      <div class="progress-track"><span data-completed="{{ completed }}" data-total="{{ total }}"></span></div>
+    </header>
+
+    <section class="stats" aria-label="Resumo das tarefas">
+      <article class="stat-card"><span class="stat-icon">▤</span><strong>{{ total }}</strong><span class="stat-label">MISSÕES</span></article>
+      <article class="stat-card pending-card"><span class="stat-icon">◷</span><strong>{{ pending }}</strong><span class="stat-label">PENDENTES</span></article>
+      <article class="stat-card done-card"><span class="stat-icon">★</span><strong>{{ completed }}</strong><span class="stat-label">CONCLUÍDAS</span></article>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<p class="notice {{ category }}" role="status"><span>▶</span> {{ message }}</p>{% endfor %}{% endif %}
+    {% endwith %}
+
+    <section class="panel add-panel">
+      <div class="section-heading"><span class="heading-mark">+</span><h2>NOVA MISSÃO</h2><span class="heading-tag">CREATE.EXE</span></div>
+      <form action="{{ url_for('add_task') }}" method="post" class="add-form">
+        <div class="field title-field">
+          <label for="title">DESCRIÇÃO DA MISSÃO</label>
+          <input id="title" name="title" type="text" maxlength="120" placeholder="Ex.: estudar listas em Python..." required>
+        </div>
+        <div class="field date-field">
+          <label for="due_date">PRAZO FINAL <span>(OPCIONAL)</span></label>
+          <input id="due_date" name="due_date" type="date" min="2000-01-01" max="2100-12-31" aria-label="Prazo final da tarefa">
+        </div>
+        <button class="add-button" type="submit"><span>＋</span> ADICIONAR</button>
+      </form>
+      <p class="form-hint">TIP: DEFINA UM PRAZO PARA ORGANIZAR SUAS MISSÕES POR DIA.</p>
+    </section>
+
+    <section class="task-section">
+      <div class="section-heading list-heading"><span class="heading-mark">▦</span><h2>QUEST LOG</h2><span class="heading-tag">MISSÕES</span></div>
+      <div class="task-tabs" role="tablist" aria-label="Filtrar missões">
+        <button class="task-tab active" id="pending-tab" type="button" role="tab" aria-selected="true" aria-controls="pending-panel" data-target="pending-panel"><span>▶</span> EM ANDAMENTO <b>{{ pending }}</b></button>
+        <button class="task-tab completed-tab" id="completed-tab" type="button" role="tab" aria-selected="false" aria-controls="completed-panel" data-target="completed-panel"><span>★</span> CONCLUÍDAS <b>{{ completed }}</b></button>
+      </div>
+
+      <div class="tab-panel" id="pending-panel" role="tabpanel" aria-labelledby="pending-tab">
+        {% if pending_groups %}
+          <div class="day-groups">
+            {% for group in pending_groups %}
+              <section class="day-group">
+                <header class="day-header"><span class="day-marker">▶</span><h3>{{ group.label }}</h3><span class="day-count">{{ group.tasks|length }} ITEM{% if group.tasks|length != 1 %}S{% endif %}</span></header>
+                <ul class="task-list">
+                  {% for task in group.tasks %}
+                    <li class="task {% if task['due_date'] and task['due_date'] < today %}is-overdue{% endif %}">
+                      <form action="{{ url_for('toggle_task', task_id=task['id']) }}" method="post">
+                        <button class="check" type="submit" aria-label="Concluir tarefa"> </button>
+                      </form>
+                      <div class="task-content">
+                        <span class="task-title">{{ task['title'] }}</span>
+                        {% if task['due_date'] %}<span class="task-deadline">{% if task['due_date'] < today %}⚠ PRAZO EXPIRADO{% elif task['due_date'] == today %}◆ VENCE HOJE{% else %}PRAZO: {{ task['due_date'][8:10] }}/{{ task['due_date'][5:7] }}/{{ task['due_date'][:4] }}{% endif %}</span>{% else %}<span class="task-deadline no-deadline">SEM PRAZO DEFINIDO</span>{% endif %}
+                      </div>
+                      <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" onsubmit="return confirm('Remover esta missão do Quest Log?')">
+                        <button class="delete" type="submit" aria-label="Excluir tarefa">×</button>
+                      </form>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </section>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty"><div class="empty-art">┌───────┐<br>│  ✓ ✓  │<br>└───────┘</div><p>NENHUMA MISSÃO PENDENTE</p><small>Todas as missões estão concluídas. Bom trabalho!</small></div>
+        {% endif %}
+      </div>
+
+      <div class="tab-panel" id="completed-panel" role="tabpanel" aria-labelledby="completed-tab" hidden>
+        {% if completed_groups %}
+          <div class="day-groups">
+            {% for group in completed_groups %}
+              <section class="day-group completed-group">
+                <header class="day-header"><span class="day-marker">★</span><h3>{{ group.label }}</h3><span class="day-count">{{ group.tasks|length }} ITEM{% if group.tasks|length != 1 %}S{% endif %}</span></header>
+                <ul class="task-list">
+                  {% for task in group.tasks %}
+                    <li class="task is-completed">
+                      <form action="{{ url_for('toggle_task', task_id=task['id']) }}" method="post">
+                        <button class="check" type="submit" aria-label="Reabrir tarefa">✓</button>
+                      </form>
+                      <div class="task-content">
+                        <span class="task-title">{{ task['title'] }}</span>
+                        {% if task['due_date'] %}<span class="task-deadline">PRAZO: {{ task['due_date'][8:10] }}/{{ task['due_date'][5:7] }}/{{ task['due_date'][:4] }}</span>{% else %}<span class="task-deadline no-deadline">SEM PRAZO DEFINIDO</span>{% endif %}
+                      </div>
+                      <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" onsubmit="return confirm('Remover esta missão do Quest Log?')">
+                        <button class="delete" type="submit" aria-label="Excluir tarefa">×</button>
+                      </form>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </section>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty"><div class="empty-art">┌───────┐<br>│  ★ ★  │<br>└───────┘</div><p>NENHUMA CONQUISTA AINDA</p><small>As missões concluídas aparecerão aqui.</small></div>
+        {% endif %}
+      </div>
+    </section>
+    <script>
+      const progressFill = document.querySelector('.progress-track > span');
+      const completedTasks = Number(progressFill.dataset.completed);
+      const totalTasks = Number(progressFill.dataset.total);
+      progressFill.style.width = `${totalTasks ? completedTasks / totalTasks * 100 : 0}%`;
+
+      document.querySelectorAll('.task-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.task-tab').forEach((item) => {
+            item.classList.remove('active');
+            item.setAttribute('aria-selected', 'false');
+          });
+          document.querySelectorAll('.tab-panel').forEach((panel) => { panel.hidden = true; });
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          document.getElementById(tab.dataset.target).hidden = false;
+        });
+      });
+    </script>
+    <footer><span class="footer-heart">♥</span> FEITO COM PYTHON + FLASK <span class="footer-separator">//</span> SAVE YOUR PROGRESS</footer>
+  </main>
+</body>
+</html>
